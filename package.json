@@ -1,0 +1,20 @@
+{
+  "name": "casa-borgo-site",
+  "version": "1.0.0",
+  "description": "Sito statico di stato lavori Casa Borgo Veneto",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "encrypt": "node scripts/encrypt.mjs",
+    "deploy": "npm run build && npm run encrypt && git add -A && git commit -m \"update: stato lavori\" && git push"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "js-yaml": "^4.1.0",
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "staticrypt": "^3.4.0"
+  }
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Casa Borgo Veneto - Stato lavori</title>
+  <style>/*__INLINE_CSS__*/</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="kicker">Casa di famiglia</p>
+      <h1>Borgo Veneto</h1>
+      <p class="sub">Piano lavori e avanzamento ristrutturazione</p>
+      <p class="last-update" id="last-update"></p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="overview">
+      <h2>Stato generale</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section id="fasi">
+      <h2>Cronoprogramma</h2>
+      <p class="section-intro">I lavori sono divisi in 7 fasi. Ogni fase dipende dalla precedente: invertire = rifare.</p>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section id="lavorazioni">
+      <h2>Lavorazioni</h2>
+      <div class="filters" id="filters">
+        <div class="filter-group">
+          <span class="filter-label">Stato:</span>
+          <button class="filter-btn active" data-filter="stato" data-value="all">Tutti</button>
+          <button class="filter-btn" data-filter="stato" data-value="in-corso">In corso</button>
+          <button class="filter-btn" data-filter="stato" data-value="pianificato">Pianificati</button>
+          <button class="filter-btn" data-filter="stato" data-value="completato">Completati</button>
+        </div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <footer>
+      <p class="legend">
+        <span class="dot dot-completato"></span> completato
+        <span class="dot dot-in-corso"></span> in corso
+        <span class="dot dot-pianificato"></span> pianificato
+        <span class="dot dot-bloccato"></span> bloccato
+      </p>
+      <p class="footer-note">Pagina privata. Per domande: chiedi ad Andrea.</p>
+    </footer>
+  </main>
+
+  <script>const APP_DATA = "__APP_DATA__";</script>
+  <script>/*__INLINE_JS__*/</script>
+</body>
+</html>
