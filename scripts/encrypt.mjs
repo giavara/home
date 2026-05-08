@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const DIST = path.join(ROOT, 'dist');
+const DIST = path.join(ROOT, 'docs');
 const TARGET = path.join(DIST, 'index.html');
 
 const password = process.env.SITE_PASSWORD;
@@ -18,7 +18,7 @@ if (!password) {
 }
 
 if (!fs.existsSync(TARGET)) {
-  console.error('ERRORE: dist/index.html non esiste. Esegui prima: npm run build');
+  console.error('ERRORE: docs/index.html non esiste. Esegui prima: npm run build');
   process.exit(1);
 }
 
@@ -27,7 +27,7 @@ if (!fs.existsSync(TARGET)) {
 // --remember 0: niente "remember me"
 // -d DIST: directory output
 // --template-button "Accedi" e altri custom: localizzazione italiana
-console.log('Cifrando dist/index.html con staticrypt...');
+console.log('Cifrando docs/index.html con staticrypt...');
 
 try {
   execSync(

@@ -13,7 +13,7 @@ const LAV_DIR = path.join(HOME, 'lavorazioni');
 const CRONO_FILE = path.join(HOME, 'context', 'cronoprogramma.md');
 const STATUS_FILE = path.join(ROOT, 'site-status.yaml');
 const SRC = path.join(ROOT, 'src');
-const DIST = path.join(ROOT, 'dist');
+const DIST = path.join(ROOT, 'docs');
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
 
@@ -109,6 +109,6 @@ const html = template
 fs.mkdirSync(DIST, { recursive: true });
 fs.writeFileSync(path.join(DIST, 'index.html'), html);
 
-console.log(`Build OK → dist/index.html (${(html.length/1024).toFixed(1)} KB)`);
+console.log(`Build OK → docs/index.html (${(html.length/1024).toFixed(1)} KB)`);
 console.log(`  ${fasi.length} fasi, ${lavorazioni.length} lavorazioni`);
 console.log(`  ultimo aggiornamento: ${data.ultimoAggiornamento}`);

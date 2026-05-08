@@ -14,7 +14,7 @@ Password: vedi `.env` (default: `prisci`)
 
 ```
 site-status.yaml  ─┐
-                   ├─→ build.mjs ─→ dist/index.html (in chiaro) ─→ encrypt.mjs ─→ dist/index.html (cifrato AES-256)
+                   ├─→ build.mjs ─→ docs/index.html (in chiaro) ─→ encrypt.mjs ─→ docs/index.html (cifrato AES-256)
 ../lavorazioni/*.md ┘                                                                    │
 ../context/cronoprogramma.md ┘                                                           ▼
                                                                                   GitHub Pages
@@ -28,13 +28,13 @@ I file sorgente (lavorazioni e cronoprogramma) restano nel vault Obsidian e sono
 site/
 ├── site-status.yaml      ← UNICA cosa da editare per aggiornamenti
 ├── scripts/
-│   ├── build.mjs         ← genera dist/index.html
+│   ├── build.mjs         ← genera docs/index.html
 │   └── encrypt.mjs       ← cifra con staticrypt
 ├── src/
 │   ├── template.html
 │   ├── style.css
 │   └── app.js
-├── dist/                 ← output cifrato (committato per GH Pages)
+├── docs/                 ← output cifrato (committato per GH Pages)
 ├── .env                  ← password (NON committato)
 └── package.json
 ```
@@ -51,13 +51,13 @@ npm run encrypt    # cifra
 
 | Comando | Cosa fa |
 |---------|---------|
-| `npm run build` | Genera `dist/index.html` in chiaro (per debug locale) |
-| `npm run encrypt` | Cifra `dist/index.html` con staticrypt |
+| `npm run build` | Genera `docs/index.html` in chiaro (per debug locale) |
+| `npm run encrypt` | Cifra `docs/index.html` con staticrypt |
 | `npm run deploy` | Build + encrypt + git push (in produzione) |
 
 ## Privacy
 
-- staticrypt cifra `dist/index.html` con AES-256, password derivata via PBKDF2.
+- staticrypt cifra `docs/index.html` con AES-256, password derivata via PBKDF2.
 - Il repo GitHub e' pubblico (GH Pages gratuiti), ma il contenuto della pagina e' cifrato.
 - Chi ha la password vede tutto, chi non ce l'ha vede solo il prompt.
 - La password sta in `.env` (gitignored). Il file cifrato in `dist/` SI committa: e' il sito.
