@@ -4,3 +4,7 @@ node_modules/
 *.log
 .icloud
 build-tmp/
+
+# Dati di stato in chiaro: NON pushare su repo pubblico.
+# Resta solo in locale + iCloud. Il contenuto finisce cifrato in dist/index.html.
+site-status.yaml
