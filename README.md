@@ -1,6 +1,6 @@
 # Casa Borgo Veneto — sito stato lavori
 
-Sito statico privato (password-protected) per condividere con famiglia/parenti il piano lavori: card espandibili per macro-attività con task, decisioni aperte e materiale da procurare.
+Web-app statica privata (password-protected) per condividere con famiglia/parenti il piano lavori. Stile app con routing hash-based (un solo HTML cifrato): tab bar Oggi / Roadmap / Lavori, ogni macro-lavoro ha una schermata dedicata con sezioni standard (Da fare → Decisioni aperte → Materiale → Fatto). La home aggrega scadenze imminenti e scadute da tutte le card.
 
 URL: https://giavara.github.io/home/
 Password: vedi `.env` (default: `prisci`)
