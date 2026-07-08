@@ -246,7 +246,7 @@
       '</div>';
 
     h += secHeader('Voci con cifra', conCifra.length);
-    h += '<div class="rows">' + conCifra.map(c =>
+    h += '<div class="panel rows">' + conCifra.map(c =>
       '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
       '<span class="tile-emoji">' + c.emoji + '</span>' +
       '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
@@ -256,7 +256,7 @@
 
     if (daDefinire.length) {
       h += secHeader('Da preventivare', daDefinire.length);
-      h += '<div class="rows">' + daDefinire.map(c =>
+      h += '<div class="panel rows">' + daDefinire.map(c =>
         '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
         '<span class="tile-emoji">' + c.emoji + '</span>' +
         '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
