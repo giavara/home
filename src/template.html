@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>Casa Borgo Veneto - Stato lavori</title>
+  <meta name="theme-color" content="#1f1b15">
+  <title>Casa Borgo Veneto — Lavori</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E">
   <style>/*__INLINE_CSS__*/</style>
 </head>
 <body>
@@ -12,45 +14,47 @@
     <div class="container">
       <p class="kicker">Casa di famiglia</p>
       <h1>Borgo Veneto</h1>
-      <p class="sub">Piano lavori e avanzamento ristrutturazione</p>
+      <p class="sub">Il piano dei lavori, aggiornato</p>
       <p class="last-update" id="last-update"></p>
     </div>
   </header>
 
   <main class="container">
-    <section id="overview">
-      <h2>Stato generale</h2>
+
+    <section id="overview" aria-label="Stato generale">
       <div class="stats" id="stats"></div>
+      <p class="nota-ingresso" id="nota-ingresso"></p>
     </section>
 
-    <section id="fasi">
-      <h2>Cronoprogramma</h2>
-      <p class="section-intro">I lavori sono divisi in 7 fasi. Ogni fase dipende dalla precedente: invertire = rifare.</p>
-      <div class="timeline" id="timeline"></div>
+    <section id="agenda">
+      <h2>Prossimi appuntamenti</h2>
+      <ul class="agenda-list" id="agenda-list"></ul>
     </section>
 
-    <section id="lavorazioni">
-      <h2>Lavorazioni</h2>
-      <div class="filters" id="filters">
-        <div class="filter-group">
-          <span class="filter-label">Stato:</span>
-          <button class="filter-btn active" data-filter="stato" data-value="all">Tutti</button>
-          <button class="filter-btn" data-filter="stato" data-value="in-corso">In corso</button>
-          <button class="filter-btn" data-filter="stato" data-value="pianificato">Pianificati</button>
-          <button class="filter-btn" data-filter="stato" data-value="completato">Completati</button>
-        </div>
+    <section id="roadmap">
+      <h2>La roadmap</h2>
+      <p class="section-intro">I lavori vanno in ordine: <em>sporco prima di pulito, nascosto prima di visibile</em>. Invertire vuol dire rifare.</p>
+      <ol class="fasi" id="fasi"></ol>
+    </section>
+
+    <section id="lavori">
+      <div class="lavori-head">
+        <h2>I lavori, uno per uno</h2>
+        <button class="toggle-all" id="toggle-all" type="button">Apri tutto</button>
+      </div>
+      <p class="section-intro">Tocca una card per vedere il dettaglio: cose da fare, decisioni aperte e materiale da procurare.</p>
+      <div class="filters" id="filters" role="group" aria-label="Filtra i lavori">
+        <button class="chip active" data-value="all" type="button">Tutti</button>
+        <button class="chip" data-value="critico" type="button">Urgenti</button>
+        <button class="chip" data-value="in-corso" type="button">In corso</button>
+        <button class="chip" data-value="in-attesa" type="button">In attesa</button>
+        <button class="chip" data-value="fatto" type="button">Fatti</button>
       </div>
       <div class="cards" id="cards"></div>
     </section>
 
     <footer>
-      <p class="legend">
-        <span class="dot dot-completato"></span> completato
-        <span class="dot dot-in-corso"></span> in corso
-        <span class="dot dot-pianificato"></span> pianificato
-        <span class="dot dot-bloccato"></span> bloccato
-      </p>
-      <p class="footer-note">Pagina privata. Per domande: chiedi ad Andrea.</p>
+      <p class="footer-note">Pagina privata di Andrea &amp; Priscilla. Per domande: chiedete ad Andrea.</p>
     </footer>
   </main>
 

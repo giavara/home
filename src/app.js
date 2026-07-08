@@ -3,134 +3,137 @@
     console.error('APP_DATA non sostituito dal build');
     return;
   }
-  const data = APP_DATA;
+  const D = APP_DATA;
+  const $ = (sel) => document.querySelector(sel);
 
-  // Last update
-  const lu = document.getElementById('last-update');
-  if (lu && data.ultimoAggiornamento) {
-    const d = new Date(data.ultimoAggiornamento);
-    const fmt = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
-    lu.textContent = `Aggiornato al ${fmt}`;
+  const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const MESI_FULL = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  const oggi = new Date();
+  oggi.setHours(0, 0, 0, 0);
+
+  function parseISO(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function dataLunga(s) {
+    const d = parseISO(s);
+    return d.getDate() + ' ' + MESI_FULL[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function dataBreve(s) {
+    const d = parseISO(s);
+    return d.getDate() + ' ' + MESI[d.getMonth()];
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  // escape + **grassetto** → <strong>
+  function fmt(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
-  // Stats overview
-  const completate = data.lavorazioni.filter(l => l.stato === 'completato').length;
-  const inCorso = data.lavorazioni.filter(l => l.stato === 'in-corso').length;
-  const totLav = data.lavorazioni.length;
-  const avgFasi = data.fasi.reduce((s, f) => s + (f.avanzamento || 0), 0) / data.fasi.length;
-  const budgetTot = data.lavorazioni.reduce((s, l) => s + (l.budget || 0), 0);
+  const STATO_LABEL = {
+    critico: 'Urgente', 'in-corso': 'In corso', 'in-attesa': 'In attesa',
+    pianificato: 'Pianificato', fatto: 'Fatto', futuro: 'Più avanti',
+  };
 
-  const statsEl = document.getElementById('stats');
-  statsEl.innerHTML = `
-    <div class="stat">
-      <span class="stat-value">${Math.round(avgFasi)}%</span>
-      <span class="stat-label">Avanzamento medio</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">${completate}/${totLav}</span>
-      <span class="stat-label">Lavorazioni completate</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">${inCorso}</span>
-      <span class="stat-label">In corso</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">€${budgetTot.toLocaleString('it-IT')}</span>
-      <span class="stat-label">Budget totale</span>
-    </div>
-  `;
+  // ── Header ──────────────────────────────────────────
+  $('#last-update').textContent = 'Aggiornato al ' + dataLunga(D.aggiornamento);
 
-  // Timeline fasi
-  const tl = document.getElementById('timeline');
-  tl.innerHTML = data.fasi.map(f => `
-    <div class="fase stato-${f.stato}">
-      <div class="fase-card">
-        <div class="fase-head">
-          <span class="fase-id">Fase ${f.id}</span>
-          <h3 class="fase-nome">${escapeHtml(f.nome)}</h3>
-          <span class="fase-periodo">${escapeHtml(f.periodo || '')}</span>
-        </div>
-        ${f.focus ? `<p class="fase-focus">${escapeHtml(f.focus)}</p>` : ''}
-        ${f.nota ? `<p class="fase-nota">${escapeHtml(f.nota)}</p>` : ''}
-        <div class="progress">
-          <div class="progress-fill" style="width: ${f.avanzamento || 0}%"></div>
-        </div>
-        <div class="progress-label">
-          <span>${labelStato(f.stato)}</span>
-          <span>${f.avanzamento || 0}%</span>
-        </div>
-      </div>
-    </div>
-  `).join('');
+  // ── Stats ───────────────────────────────────────────
+  $('#stats').innerHTML = [
+    { v: D.stats.fatte, l: 'cose fatte' },
+    { v: D.stats.daFare, l: 'da fare' },
+    { v: D.stats.inAttesa, l: 'in attesa di altri' },
+  ].map(s => '<div class="stat"><div class="value">' + s.v + '</div><div class="label">' + s.l + '</div></div>').join('');
 
-  // Cards lavorazioni
-  const cardsEl = document.getElementById('cards');
-  function renderCards(filterStato) {
-    const filtered = filterStato === 'all'
-      ? data.lavorazioni
-      : data.lavorazioni.filter(l => l.stato === filterStato);
+  if (D.notaIngresso) $('#nota-ingresso').textContent = D.notaIngresso;
 
-    if (filtered.length === 0) {
-      cardsEl.innerHTML = '<p style="color: var(--text-soft); grid-column: 1/-1; text-align: center; padding: 40px 0;">Nessuna lavorazione con questo stato.</p>';
-      return;
+  // ── Agenda ──────────────────────────────────────────
+  $('#agenda-list').innerHTML = D.appuntamenti.map(a => {
+    const d = parseISO(a.data);
+    const past = d < oggi;
+    return '<li' + (past ? ' class="agenda-past"' : '') + '>' +
+      '<div class="agenda-date"><div class="day">' + d.getDate() + '</div><div class="month">' + MESI[d.getMonth()] + '</div></div>' +
+      '<div class="agenda-text">' + fmt(a.testo) + '</div></li>';
+  }).join('');
+
+  // ── Roadmap ─────────────────────────────────────────
+  $('#fasi').innerHTML = D.fasi.map(f => {
+    const inCorso = f.stato === 'in-corso';
+    return '<li class="fase ' + esc(f.stato) + '">' +
+      '<span class="fase-dot"></span>' +
+      '<div class="fase-quando">' + esc(f.nome) + '</div>' +
+      '<div class="fase-titolo">' + esc(f.titolo) + '</div>' +
+      '<div class="fase-desc">' + fmt(f.descrizione || '') + '</div>' +
+      (inCorso ? '<span class="fase-tag">Siamo qui</span>' : '') +
+      '</li>';
+  }).join('');
+
+  // ── Card ────────────────────────────────────────────
+  function renderTask(t) {
+    const cls = t.done ? 't-done' : (t.waiting ? 't-wait' : '');
+    let flags = '';
+    if (!t.done && t.waiting) flags += '<span class="flag wait">in attesa</span>';
+    if (!t.done && t.prio === 'critica') flags += '<span class="flag prio">priorità</span>';
+    if (!t.done && t.due) {
+      const overdue = parseISO(t.due) < oggi;
+      flags += '<span class="flag ' + (overdue ? 'overdue' : 'due') + '">entro il ' + dataBreve(t.due) + '</span>';
     }
-
-    cardsEl.innerHTML = filtered.map(l => `
-      <div class="card stato-${l.stato}" data-id="${l.id}">
-        <div class="card-head">
-          <h3 class="card-titolo">${escapeHtml(l.titolo)}</h3>
-          <span class="badge badge-${l.stato}">${labelStato(l.stato)}</span>
-        </div>
-        <div class="card-meta">
-          ${l.fase != null ? `<span>Fase ${l.fase}</span>` : ''}
-          ${l.fase != null && l.budget ? '<span class="sep">·</span>' : ''}
-          ${l.budget ? `<span>€${l.budget.toLocaleString('it-IT')}</span>` : ''}
-        </div>
-        ${l.nota ? `<p class="card-nota">${escapeHtml(l.nota)}</p>` : ''}
-        <div class="progress">
-          <div class="progress-fill" style="width: ${l.avanzamento || 0}%"></div>
-        </div>
-        <div class="progress-label">
-          <span>${l.avanzamento || 0}% completato</span>
-          ${l.tasksTot > 0 ? `<span>${l.tasksDone}/${l.tasksTot} attivita</span>` : ''}
-        </div>
-        ${l.descrizione ? `<p class="card-descrizione">${escapeHtml(l.descrizione)}</p>` : ''}
-      </div>
-    `).join('');
-
-    // Click to expand
-    cardsEl.querySelectorAll('.card').forEach(c => {
-      c.addEventListener('click', () => c.classList.toggle('expanded'));
-    });
+    if (t.done && t.doneDate) flags += '<span class="flag due">' + dataBreve(t.doneDate) + '</span>';
+    return '<li class="' + cls + '">' +
+      '<span class="tbox">' + (t.done ? '✓' : (t.waiting ? '⏳' : '')) + '</span>' +
+      '<span class="ttext">' + fmt(t.text) + (flags ? '<span class="tflags">' + flags + '</span>' : '') + '</span>' +
+      '</li>';
   }
 
-  renderCards('all');
+  function renderCard(c) {
+    const pct = c.tot ? Math.round(100 * c.done / c.tot) : 0;
+    const aperti = c.tasks.filter(t => !t.done);
+    const chiusi = c.tasks.filter(t => t.done);
+    const faseNome = (D.fasi.find(f => f.id === c.fase) || {}).nome || '';
 
-  // Filters
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderCards(btn.dataset.value);
+    let body = '';
+    if (c.sintesi) body += '<p class="card-sintesi">' + fmt(c.sintesi) + '</p>';
+    if (aperti.length) body += '<h4>Da fare</h4><ul class="tlist">' + aperti.map(renderTask).join('') + '</ul>';
+    if (c.decisioni.length) body += '<h4>Decisioni aperte</h4><ul class="dlist">' + c.decisioni.map(d => '<li>' + fmt(d) + '</li>').join('') + '</ul>';
+    if (c.materiali.length) body += '<h4>Materiale da procurare</h4><ul class="mlist">' + c.materiali.map(m => '<li>' + fmt(m) + '</li>').join('') + '</ul>';
+    if (chiusi.length) body += '<h4>' + (c.stato === 'fatto' ? 'Tappe chiuse' : 'Già fatto') + '</h4><ul class="tlist">' + chiusi.map(renderTask).join('') + '</ul>';
+
+    return '<details class="card s-' + esc(c.stato) + '" data-stato="' + esc(c.stato) + '">' +
+      '<summary class="card-head">' +
+      '<span class="card-emoji">' + c.emoji + '</span>' +
+      '<span class="card-title">' + esc(c.titolo) + '</span>' +
+      '<span class="card-meta"><span class="badge ' + esc(c.stato) + '">' + STATO_LABEL[c.stato] + '</span>' +
+      (faseNome ? '<span>' + esc(faseNome) + '</span>' : '') + '</span>' +
+      '<span class="chev">▼</span>' +
+      '<span class="card-bar"><span class="meter"><span style="width:' + pct + '%"></span></span>' +
+      '<span class="count">' + c.done + '/' + c.tot + '</span></span>' +
+      '</summary>' +
+      '<div class="card-body">' + body + '</div>' +
+      '</details>';
+  }
+
+  $('#cards').innerHTML = D.cards.map(renderCard).join('');
+
+  // ── Filtri ──────────────────────────────────────────
+  const chips = document.querySelectorAll('#filters .chip');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    chips.forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const v = chip.dataset.value;
+    document.querySelectorAll('#cards .card').forEach(card => {
+      const st = card.dataset.stato;
+      const show = v === 'all' || st === v || (v === 'in-corso' && st === 'critico');
+      card.classList.toggle('hidden', !show);
     });
+  }));
+
+  // ── Apri/chiudi tutto ───────────────────────────────
+  const toggleBtn = $('#toggle-all');
+  let allOpen = false;
+  toggleBtn.addEventListener('click', () => {
+    allOpen = !allOpen;
+    document.querySelectorAll('#cards .card:not(.hidden)').forEach(c => { c.open = allOpen; });
+    toggleBtn.textContent = allOpen ? 'Chiudi tutto' : 'Apri tutto';
   });
-
-  function labelStato(s) {
-    return ({
-      'completato': 'Completato',
-      'in-corso': 'In corso',
-      'pianificato': 'Pianificato',
-      'bloccato': 'Bloccato',
-    })[s] || s;
-  }
-
-  function escapeHtml(s) {
-    if (s == null) return '';
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
 })();

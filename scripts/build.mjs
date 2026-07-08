@@ -1,114 +1,128 @@
-// build.mjs — legge dati dal vault Obsidian e genera dist/index.html
+// build.mjs — legge site-data.yaml + ../tasks.md e genera docs/index.html
+// I task NON vanno duplicati nello yaml: la fonte di verità è tasks.md del vault.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import MarkdownIt from 'markdown-it';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const HOME = path.resolve(ROOT, '..');           // projects/home/
-const LAV_DIR = path.join(HOME, 'lavorazioni');
-const CRONO_FILE = path.join(HOME, 'context', 'cronoprogramma.md');
-const STATUS_FILE = path.join(ROOT, 'site-status.yaml');
+const TASKS_FILE = path.join(HOME, 'tasks.md');
+const DATA_FILE = path.join(ROOT, 'site-data.yaml');
 const SRC = path.join(ROOT, 'src');
 const DIST = path.join(ROOT, 'docs');
 
-const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
+const data = yaml.load(fs.readFileSync(DATA_FILE, 'utf8'));
+const tasksRaw = fs.readFileSync(TASKS_FILE, 'utf8');
 
-const status = yaml.load(fs.readFileSync(STATUS_FILE, 'utf8'));
-
-function parseLavorazione(id) {
-  const file = path.join(LAV_DIR, `${id}.md`);
-  if (!fs.existsSync(file)) return null;
-  const raw = fs.readFileSync(file, 'utf8');
-
-  const titoloMatch = raw.match(/^#\s+(.+?)\s*$/m);
-  const titolo = titoloMatch ? titoloMatch[1].trim() : id;
-
-  // Estrai budget dalla riga "| Budget ... | €X |"
-  const budgetMatch = raw.match(/\|\s*Budget[^|]*\|\s*\*?\*?€\s*([\d.,]+)/i);
-  let budget = null;
-  if (budgetMatch) {
-    const num = budgetMatch[1].replace(/[.,](?=\d{3})/g, '').replace(',', '.');
-    budget = parseInt(num.replace(/\..*/, ''));
+// ── Parser tasks.md ─────────────────────────────────────────
+// Sezioni: "## <emoji> Titolo — suffisso". Task: "- [ ] testo 📅 data 🔺 #tag".
+function parseSections(raw) {
+  const sections = [];
+  const parts = raw.split(/^##\s+/m).slice(1);
+  for (const part of parts) {
+    const [headingLine, ...rest] = part.split('\n');
+    const heading = headingLine.trim();
+    const tasks = [];
+    for (const line of rest) {
+      const m = line.match(/^\s*-\s*\[([ xX])\]\s*(.*\S)\s*$/);
+      if (!m) continue;
+      const done = m[1] !== ' ';
+      let text = m[2];
+      const due = (text.match(/📅\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || null;
+      const doneDate = (text.match(/✅\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || null;
+      const prio = text.includes('🔺') ? 'critica'
+                 : text.includes('⏫') ? 'alta'
+                 : text.includes('🔽') ? 'bassa' : null;
+      const waiting = /#aspetto\b/.test(text) || /^\*?\*?Aspetto:/i.test(text);
+      text = text
+        .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '')
+        .replace(/✅\s*\d{4}-\d{2}-\d{2}/g, '')
+        .replace(/🔁[^#]*/g, '')
+        .replace(/[🔺⏫🔽]/g, '')
+        .replace(/#[\w-]+/g, '')
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')   // link md → solo testo
+        .replace(/^(\*\*)?Aspetto:\s*/i, '$1')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .trim()
+        .replace(/[—\-–]\s*$/, '')
+        .trim();
+      tasks.push({ text, done, due, doneDate, prio, waiting });
+    }
+    sections.push({ heading, tasks });
   }
-
-  // Descrizione: primo paragrafo dopo "## Descrizione"
-  let descrizione = '';
-  const descMatch = raw.match(/##\s+Descrizione\s*\n+([^\n#][^\n]*(?:\n[^\n#][^\n]*)*)/);
-  if (descMatch) descrizione = descMatch[1].trim().split(/\n\n/)[0];
-
-  // Conta checkbox totali e completate
-  const allTasks = raw.match(/^\s*-\s*\[[ xX]\]/gm) || [];
-  const doneTasks = raw.match(/^\s*-\s*\[[xX]\]/gm) || [];
-  const tasksTot = allTasks.length;
-  const tasksDone = doneTasks.length;
-
-  return { titolo, budget, descrizione, tasksTot, tasksDone };
+  return sections;
 }
 
-function parseCronoFase(faseId) {
-  if (!fs.existsSync(CRONO_FILE)) return null;
-  const raw = fs.readFileSync(CRONO_FILE, 'utf8');
-  const rx = new RegExp(`##\\s+FASE\\s+${faseId}\\s*[—-]([\\s\\S]*?)(?=\\n##\\s|$)`, 'i');
-  const m = raw.match(rx);
-  if (!m) return null;
-  // Estrai prima riga "**Focus**: ..." e ripulisci il markdown
-  const focusMatch = m[1].match(/\*\*Focus\*\*:\s*([^\n]+)/);
-  const focus = focusMatch
-    ? focusMatch[1].replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').trim()
-    : '';
-  return { focus };
+const sections = parseSections(tasksRaw);
+
+function findSection(match) {
+  const hit = sections.find(s => s.heading.toLowerCase().includes(match.toLowerCase()));
+  if (!hit) console.warn(`⚠️  Sezione non trovata in tasks.md: "${match}"`);
+  return hit || { heading: match, tasks: [] };
 }
 
-const lavorazioni = status.lavorazioni.map(item => {
-  const parsed = parseLavorazione(item.id);
+// ── Componi card ────────────────────────────────────────────
+const cards = data.cards.map(c => {
+  const matches = Array.isArray(c.sezione) ? c.sezione : [c.sezione];
+  const tasks = matches.flatMap(m => findSection(m).tasks);
+  const tot = tasks.length;
+  const done = tasks.filter(t => t.done).length;
   return {
-    id: item.id,
-    titolo: item.titolo || (parsed?.titolo) || item.id,
-    budget: item.budget !== undefined ? item.budget : parsed?.budget ?? null,
-    descrizione: item.descrizione || parsed?.descrizione || '',
-    fase: item.fase ?? null,
-    stato: item.stato || 'pianificato',
-    avanzamento: item.avanzamento ?? 0,
-    nota: item.nota || '',
-    tasksTot: parsed?.tasksTot ?? 0,
-    tasksDone: parsed?.tasksDone ?? 0,
+    id: c.id,
+    emoji: c.emoji,
+    titolo: c.titolo,
+    stato: c.stato,
+    fase: c.fase,
+    sintesi: (c.sintesi || '').trim(),
+    decisioni: c.decisioni || [],
+    materiali: c.materiali || [],
+    tasks, tot, done,
   };
 });
 
-const fasi = status.fasi.map(f => {
-  const crono = parseCronoFase(f.id);
-  return {
-    ...f,
-    focus: f.focus || crono?.focus || '',
-  };
-});
-
-// Ordina lavorazioni per fase
-lavorazioni.sort((a, b) => (a.fase ?? 99) - (b.fase ?? 99));
-
-const data = {
-  ultimoAggiornamento: status['ultimo-aggiornamento'],
-  fasi,
-  lavorazioni,
+// ── Statistiche globali (escluse card "futuro") ─────────────
+const attive = cards.filter(c => c.stato !== 'futuro');
+const allTasks = attive.flatMap(c => c.tasks);
+const stats = {
+  fatte: allTasks.filter(t => t.done).length,
+  daFare: allTasks.filter(t => !t.done && !t.waiting).length,
+  inAttesa: allTasks.filter(t => !t.done && t.waiting).length,
 };
 
-// Carica template e inline CSS + JS
+// js-yaml parsa le date non quotate come Date → riportale a "YYYY-MM-DD"
+function toISO(v) {
+  if (v instanceof Date) {
+    const p = n => String(n).padStart(2, '0');
+    return `${v.getUTCFullYear()}-${p(v.getUTCMonth() + 1)}-${p(v.getUTCDate())}`;
+  }
+  return String(v);
+}
+
+const APP_DATA = {
+  aggiornamento: toISO(data['ultimo-aggiornamento']),
+  notaIngresso: (data['nota-ingresso'] || '').trim(),
+  fasi: data.fasi || [],
+  appuntamenti: (data.appuntamenti || []).map(a => ({ ...a, data: toISO(a.data) })),
+  cards, stats,
+};
+
+// ── Render template ─────────────────────────────────────────
 const template = fs.readFileSync(path.join(SRC, 'template.html'), 'utf8');
 const css = fs.readFileSync(path.join(SRC, 'style.css'), 'utf8');
 const js = fs.readFileSync(path.join(SRC, 'app.js'), 'utf8');
+const json = JSON.stringify(APP_DATA).replace(/</g, '\\u003c');
 
 const html = template
-  .replace('/*__INLINE_CSS__*/', css)
-  .replace('/*__INLINE_JS__*/', js)
-  .replace('"__APP_DATA__"', JSON.stringify(data));
+  .replace('/*__INLINE_CSS__*/', () => css)
+  .replace('"__APP_DATA__"', () => json)
+  .replace('/*__INLINE_JS__*/', () => js);
 
 fs.mkdirSync(DIST, { recursive: true });
 fs.writeFileSync(path.join(DIST, 'index.html'), html);
 
-console.log(`Build OK → docs/index.html (${(html.length/1024).toFixed(1)} KB)`);
-console.log(`  ${fasi.length} fasi, ${lavorazioni.length} lavorazioni`);
-console.log(`  ultimo aggiornamento: ${data.ultimoAggiornamento}`);
+console.log(`✓ docs/index.html generato (${(html.length / 1024).toFixed(1)} KB)`);
+console.log(`  ${cards.length} card, ${allTasks.length} task attive — ${stats.fatte} fatte, ${stats.daFare} da fare, ${stats.inAttesa} in attesa di altri`);
