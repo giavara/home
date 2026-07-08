@@ -107,6 +107,7 @@ function toISO(v) {
 const APP_DATA = {
   aggiornamento: toISO(data['ultimo-aggiornamento']),
   notaIngresso: (data['nota-ingresso'] || '').trim(),
+  budgetNota: (data['budget-nota'] || '').trim(),
   fasi: data.fasi || [],
   appuntamenti: (data.appuntamenti || []).map(a => ({ ...a, data: toISO(a.data) })),
   cards, stats,

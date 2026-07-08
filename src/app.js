@@ -21,13 +21,11 @@
   const dataGiorno = s => { const d = parseISO(s); return GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()]; };
 
   const GIORNI_FULL = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
-  // tronca a fine parola, per le liste compatte
+  // tronca a fine parola, per le liste compatte (senza grassetti)
   function corto(s, max) {
-    if (s.length <= max) return s;
-    let cut = s.slice(0, max).replace(/\*\*[^*]*$/, '').replace(/\s+\S*$/, '');
-    const bolds = (cut.match(/\*\*/g) || []).length;
-    if (bolds % 2) cut += '**';
-    return cut + '…';
+    const plain = s.replace(/\*\*/g, '');
+    if (plain.length <= max) return plain;
+    return plain.slice(0, max).replace(/\s+\S*$/, '') + '…';
   }
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -50,13 +48,13 @@
     if (!t.done && t.due) {
       const overdue = parseISO(t.due) < oggi;
       out += overdue
-        ? '<span class="pill overdue">scaduto — era per ' + dataGiorno(t.due) + '</span>'
-        : '<span class="pill due">entro ' + dataGiorno(t.due) + '</span>';
+        ? '<span class="m overdue">scaduto — era per ' + dataGiorno(t.due) + '</span>'
+        : '<span class="m due">entro ' + dataGiorno(t.due) + '</span>';
     }
-    if (!t.done && t.prio === 'critica') out += '<span class="pill prio">priorità massima</span>';
-    if (!t.done && t.prio === 'alta') out += '<span class="pill prio">alta priorità</span>';
-    if (!t.done && t.waiting) out += '<span class="pill">in attesa di risposta</span>';
-    if (t.done && t.doneDate) out += '<span class="pill donedate">fatto il ' + dataBreve(t.doneDate) + '</span>';
+    if (!t.done && t.prio === 'critica') out += '<span class="m prio">priorità massima</span>';
+    if (!t.done && t.prio === 'alta') out += '<span class="m prio">alta priorità</span>';
+    if (!t.done && t.waiting) out += '<span class="m">in attesa di risposta</span>';
+    if (t.done && t.doneDate) out += '<span class="m donedate">fatto il ' + dataBreve(t.doneDate) + '</span>';
     return out;
   }
 
@@ -229,14 +227,41 @@
       ? '<div class="panel dsec-body"><ul class="tlist">' + chiusi.map(taskRow).join('') + '</ul></div>'
       : '<div class="panel dsec-empty">Ancora niente di completato qui.</div>';
 
-    // Navigazione precedente / successivo
-    const i = D.cards.indexOf(c);
-    const prev = D.cards[i - 1], next = D.cards[i + 1];
-    if (prev || next) {
-      h += '<div class="dnav">' +
-        (prev ? '<a href="#/lavoro/' + prev.id + '"><span class="dir">‹ precedente</span><span class="name">' + prev.emoji + ' ' + esc(prev.titolo) + '</span></a>' : '<span></span>') +
-        (next ? '<a class="next" href="#/lavoro/' + next.id + '"><span class="dir">successivo ›</span><span class="name">' + next.emoji + ' ' + esc(next.titolo) + '</span></a>' : '') +
-        '</div>';
+    return h + '</div>';
+  }
+
+  function screenBudget() {
+    const voci = D.cards.filter(c => c.budget !== null || c.budgetNota);
+    const conCifra = voci.filter(c => c.budget !== null).sort((a, b) => b.budget - a.budget);
+    const daDefinire = voci.filter(c => c.budget === null);
+    const tot = conCifra.reduce((s, c) => s + c.budget, 0);
+
+    let h = '<div class="screen">';
+    h += '<h1 class="screen-title">Il budget</h1>';
+    h += '<p class="screen-sub">Cifre previste per ogni lavoro. Tocca una voce per aprire il dettaglio.</p>';
+
+    h += '<div class="bhero"><div class="bh-value">€ ' + tot.toLocaleString('it-IT') + '</div>' +
+      '<div class="bh-label">previsti sui lavori mappati' + (daDefinire.length ? ' — più ' + daDefinire.length + ' voci ancora da preventivare' : '') + '</div>' +
+      (D.budgetNota ? '<div class="bh-warn">' + fmt(D.budgetNota) + '</div>' : '') +
+      '</div>';
+
+    h += secHeader('Voci con cifra', conCifra.length);
+    h += '<div class="rows">' + conCifra.map(c =>
+      '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
+      '<span class="tile-emoji">' + c.emoji + '</span>' +
+      '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
+      (c.budgetNota ? '<div class="row-sub">' + fmt(c.budgetNota) + '</div>' : '') +
+      '</div><span class="bval">€ ' + c.budget.toLocaleString('it-IT') + '</span></a>').join('') + '</div>';
+    h += '<div class="btot"><span>Totale mappato</span><span>€ ' + tot.toLocaleString('it-IT') + '</span></div>';
+
+    if (daDefinire.length) {
+      h += secHeader('Da preventivare', daDefinire.length);
+      h += '<div class="rows">' + daDefinire.map(c =>
+        '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
+        '<span class="tile-emoji">' + c.emoji + '</span>' +
+        '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
+        (c.budgetNota ? '<div class="row-sub">' + fmt(c.budgetNota) + '</div>' : '') +
+        '</div><span class="bval tbd">da definire</span></a>').join('') + '</div>';
     }
     return h + '</div>';
   }
@@ -253,6 +278,7 @@
     let html, tab = 'home', title = 'Borgo Veneto', meta = 'agg. ' + dataBreve(D.aggiornamento), back = null;
 
     if (parts[0] === 'roadmap') { html = screenRoadmap(); tab = 'roadmap'; title = 'Borgo Veneto'; }
+    else if (parts[0] === 'budget') { html = screenBudget(); tab = 'budget'; }
     else if (parts[0] === 'lavori') { html = screenLavori(); tab = 'lavori'; }
     else if (parts[0] === 'lavoro' && parts[1]) {
       const c = cardDi(parts[1]);
