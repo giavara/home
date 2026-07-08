@@ -200,6 +200,12 @@
     h += '<div class="dprog' + (c.stato === 'fatto' ? ' done' : '') + '"><div class="bar"><span style="width:' + pct + '%"></span></div>' +
       '<span class="pct">' + c.done + ' su ' + c.tot + ' · ' + pct + '%</span></div>';
 
+    if (c.budget !== null || c.budgetNota) {
+      h += '<div class="dbudget"><span class="db-label">Budget</span>' +
+        (c.budget !== null ? '<span class="db-value">€ ' + c.budget.toLocaleString('it-IT') + '</span>' : '<span class="db-value db-tbd">da definire</span>') +
+        (c.budgetNota ? '<span class="db-nota">' + fmt(c.budgetNota) + '</span>' : '') +
+        '</div>';
+    }
     if (c.sintesi) h += '<p class="dsintesi">' + fmt(c.sintesi) + '</p>';
 
     // Sezioni standard, sempre nello stesso ordine

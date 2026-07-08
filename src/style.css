@@ -343,6 +343,29 @@ h3.sec .n {
 
 .dsintesi { color: var(--ink-2); font-size: 15.5px; }
 
+.dbudget {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 11px 14px;
+  margin-bottom: 14px;
+}
+.db-label {
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--brass-dark);
+  font-weight: 650;
+}
+.db-value { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.db-value.db-tbd { font-size: 15px; font-weight: 600; color: var(--ink-3); font-style: italic; }
+.db-nota { flex-basis: 100%; font-size: 13px; color: var(--ink-3); }
+
 .dsec-body { padding: 4px 14px; }
 .dsec-empty { padding: 13px 14px; color: var(--ink-3); font-size: 14px; font-style: italic; }
 

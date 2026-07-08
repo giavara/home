@@ -78,6 +78,8 @@ const cards = data.cards.map(c => {
     stato: c.stato,
     fase: c.fase,
     sintesi: (c.sintesi || '').trim(),
+    budget: c.budget ?? null,
+    budgetNota: (c['budget-nota'] || '').trim(),
     decisioni: c.decisioni || [],
     materiali: c.materiali || [],
     tasks, tot, done,
