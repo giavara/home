@@ -110,6 +110,7 @@ const APP_DATA = {
   budgetNota: (data['budget-nota'] || '').trim(),
   fasi: data.fasi || [],
   appuntamenti: (data.appuntamenti || []).map(a => ({ ...a, data: toISO(a.data) })),
+  attese: (data.attese || []).map(a => ({ ...a, dal: toISO(a.dal) })),
   cards, stats,
 };
 

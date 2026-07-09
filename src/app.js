@@ -9,6 +9,7 @@
   const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
   const MESI_FULL = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   const GIORNI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+  const GIORNI_FULL = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
   const oggi = new Date();
   oggi.setHours(0, 0, 0, 0);
 
@@ -19,77 +20,56 @@
   const dataLunga = s => { const d = parseISO(s); return d.getDate() + ' ' + MESI_FULL[d.getMonth()] + ' ' + d.getFullYear(); };
   const dataBreve = s => { const d = parseISO(s); return d.getDate() + ' ' + MESI[d.getMonth()]; };
   const dataGiorno = s => { const d = parseISO(s); return GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()]; };
+  const giorniDa = s => Math.max(0, Math.floor((oggi - parseISO(s)) / 86400000));
 
-  const GIORNI_FULL = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
-  // tronca a fine parola, per le liste compatte (senza grassetti)
+  // separatore migliaia manuale (toLocaleString non raggruppa i 4 cifre in it-IT)
+  const euro = n => '€ ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
   function corto(s, max) {
     const plain = s.replace(/\*\*/g, '');
     if (plain.length <= max) return plain;
-    return plain.slice(0, max).replace(/\s+\S*$/, '') + '…';
+    return plain.slice(0, max).replace(/\s+\S*$/, '').replace(/\s*[—–:,;-]+$/, '') + '…';
   }
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
+  // stato "critico" si presenta come "in corso" (l'urgenza vive nella hero di Oggi)
+  const stEff = st => st === 'critico' ? 'in-corso' : st;
   const STATO_LABEL = {
-    critico: 'Urgente', 'in-corso': 'In corso', 'in-attesa': 'In attesa di altri',
-    pianificato: 'Pianificato', fatto: 'Fatto', futuro: 'Più avanti',
+    'in-corso': 'In corso', 'in-attesa': 'In attesa',
+    pianificato: 'In programma', fatto: 'Completato', futuro: 'Più avanti',
   };
-  const STATO_ORDER = ['critico', 'in-corso', 'in-attesa', 'pianificato', 'fatto', 'futuro'];
+  const GRUPPI = [
+    { st: 'in-corso', titolo: 'In corso' },
+    { st: 'in-attesa', titolo: 'In attesa di altri' },
+    { st: 'pianificato', titolo: 'In programma' },
+    { st: 'futuro', titolo: 'Più avanti' },
+    { st: 'fatto', titolo: 'Completati' },
+  ];
 
-  const CHEV = '<span class="chev-r"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>';
+  const CHEV = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const CLOCK = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
+  const BACK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
 
   const faseDi = id => D.fasi.find(f => f.id === id) || null;
   const cardDi = id => D.cards.find(c => c.id === id) || null;
+  const iniziali = s => {
+    const parole = s.trim().split(/\s+/);
+    return (parole.length > 1 ? parole.map(w => w[0]).join('') : parole[0].slice(0, 2)).slice(0, 2).toUpperCase();
+  };
 
-  // ── Blocchi riusabili ───────────────────────────────
-  function pillsDi(t) {
-    let out = '';
-    if (!t.done && t.due) {
-      const overdue = parseISO(t.due) < oggi;
-      out += overdue
-        ? '<span class="m overdue">scaduto — era per ' + dataGiorno(t.due) + '</span>'
-        : '<span class="m due">entro ' + dataGiorno(t.due) + '</span>';
-    }
-    if (!t.done && t.prio === 'critica') out += '<span class="m prio">priorità massima</span>';
-    if (!t.done && t.prio === 'alta') out += '<span class="m prio">alta priorità</span>';
-    if (!t.done && t.waiting) out += '<span class="m">in attesa di risposta</span>';
-    if (t.done && t.doneDate) out += '<span class="m donedate">fatto il ' + dataBreve(t.doneDate) + '</span>';
-    return out;
+  function sez(label, colore, n) {
+    return '<h3 class="sec' + (colore ? ' c-' + colore : '') + '">' + label +
+      (n !== undefined ? ' <span class="n">' + n + '</span>' : '') + '</h3>';
   }
 
-  function taskRow(t) {
-    const cls = t.done ? 't-done' : (t.waiting ? 't-wait' : '');
-    const pills = pillsDi(t);
-    return '<li class="' + cls + '">' +
-      '<span class="tbox">' + (t.done ? '✓' : (t.waiting ? '⏳' : '')) + '</span>' +
-      '<div class="tmain"><div class="ttext">' + fmt(t.text) + '</div>' +
-      (pills ? '<div class="tmeta">' + pills + '</div>' : '') +
-      '</div></li>';
+  function spill(st) {
+    const e = stEff(st);
+    return '<span class="spill s-' + e + '">' + STATO_LABEL[e] + '</span>';
   }
 
-  function cardRef(c) {
-    return '<a class="cardref" href="#/lavoro/' + c.id + '">' + c.emoji + ' ' + esc(c.titolo) + '</a>';
-  }
-
-  function tile(c) {
-    const pct = c.tot ? Math.round(100 * c.done / c.tot) : 0;
-    const fase = faseDi(c.fase);
-    return '<a class="tile g-' + esc(c.stato) + '" href="#/lavoro/' + c.id + '">' +
-      '<span class="tile-emoji">' + c.emoji + '</span>' +
-      '<div class="row-main"><div class="tile-title">' + esc(c.titolo) + '</div>' +
-      '<div class="tile-meta">' +
-      '<span class="tile-bar"><span style="width:' + pct + '%"></span></span>' +
-      '<span class="tile-count">' + c.done + '/' + c.tot + '</span>' +
-      (fase ? '<span class="tile-fase">· ' + esc(fase.nome) + '</span>' : '') +
-      '</div></div>' + CHEV + '</a>';
-  }
-
-  function secHeader(label, n) {
-    return '<h3 class="sec">' + label + (n !== undefined ? ' <span class="n">' + n + '</span>' : '') + '</h3>';
-  }
-
-  // ── Da non perdere (aggregato cross-card) ───────────
+  // ── Urgenze aggregate (hero "Da fare adesso") ───────
   function urgenti() {
     const rows = [];
     D.cards.forEach(c => {
@@ -105,58 +85,88 @@
       });
     });
     rows.sort((a, b) => (a.due ? a.due.getTime() : Infinity) - (b.due ? b.due.getTime() : Infinity));
-    return rows.slice(0, 8);
+    return rows.slice(0, 6);
   }
 
-  // ── Schermate ───────────────────────────────────────
+  // ── Oggi ────────────────────────────────────────────
   function screenHome() {
     let h = '<div class="screen">';
-    h += '<h1 class="screen-title">Il punto</h1>';
-    h += '<p class="screen-sub">' + GIORNI_FULL[oggi.getDay()] + ' ' + oggi.getDate() + ' ' + MESI_FULL[oggi.getMonth()] + '</p>';
-
-    h += '<div class="stats">' + [
-      { v: D.stats.fatte, l: 'cose fatte' },
-      { v: D.stats.daFare, l: 'da fare' },
-      { v: D.stats.inAttesa, l: 'in attesa di altri' },
-    ].map(s => '<div class="stat"><div class="value">' + s.v + '</div><div class="label">' + s.l + '</div></div>').join('') + '</div>';
-
-    if (D.notaIngresso) h += '<p class="nota">' + fmt(D.notaIngresso) + '</p>';
+    h += '<div class="kicker">Casa in campagna</div>';
+    h += '<h1 class="screen-title">Oggi</h1>';
+    h += '<p class="screen-sub">' + GIORNI_FULL[oggi.getDay()] + ' ' + oggi.getDate() + ' ' + MESI_FULL[oggi.getMonth()] + ' ' + oggi.getFullYear() + '</p>';
 
     const urg = urgenti();
     if (urg.length) {
-      h += secHeader('Da non perdere', urg.length);
-      h += '<div class="panel rows">' + urg.map(r =>
-        '<a class="tile" href="#/lavoro/' + r.c.id + '">' +
-        (r.due
-          ? '<div class="datebox' + (r.overdue ? ' overdue' : '') + '"><div class="day">' + r.due.getDate() + '</div><div class="month">' + MESI[r.due.getMonth()] + '</div></div>'
-          : '<div class="datebox"><div class="day">!</div><div class="month">prio</div></div>') +
-        '<div class="row-main"><div class="row-text">' + fmt(corto(r.t.text, 90)) + '</div>' +
-        '<div class="row-sub">' + (r.overdue ? '<span class="overdue">scaduto</span>' : '') +
-        '<span class="cardref">' + r.c.emoji + ' ' + esc(r.c.titolo) + '</span></div>' +
-        '</div>' + CHEV + '</a>').join('') + '</div>';
+      const first = urg[0], rest = urg.slice(1);
+      const metaFirst = (first.due
+        ? (first.overdue ? 'Scaduto · era ' + dataBreve(first.t.due) : 'Entro ' + dataGiorno(first.t.due))
+        : 'Priorità massima') + ' · ' + first.c.emoji + ' ' + esc(first.c.titolo);
+      h += '<div class="htoday">' +
+        '<div class="htoday-head"><span class="htoday-label">Da fare adesso</span><span class="htoday-count">' + urg.length + '</span></div>' +
+        '<a class="htoday-first" href="#/lavoro/' + first.c.id + '">' +
+        '<span class="t">' + esc(corto(first.t.text, 80)) + '</span>' +
+        '<span class="m">' + metaFirst + '</span></a>' +
+        (rest.length ? '<div class="htoday-rest">' + rest.map(r =>
+          '<a class="htoday-row" href="#/lavoro/' + r.c.id + '">' +
+          '<span class="d">' + (r.due ? dataBreve(r.t.due) : 'prio') + '</span>' +
+          '<span class="t">' + esc(corto(r.t.text, 60)) + '</span>' + CHEV + '</a>').join('') + '</div>' : '') +
+        '</div>';
     }
 
-    h += secHeader('Prossimi appuntamenti', D.appuntamenti.length);
-    h += '<div class="panel rows">' + D.appuntamenti.map(a => {
-      const d = parseISO(a.data);
-      const past = d < oggi;
-      return '<div><div class="datebox' + (past ? ' past' : '') + '"><div class="day">' + d.getDate() + '</div><div class="month">' + MESI[d.getMonth()] + '</div></div>' +
-        '<div class="row-main"><div class="row-text">' + fmt(a.testo) + '</div></div></div>';
-    }).join('') + '</div>';
+    const attese = (D.attese || []).slice().sort((a, b) => giorniDa(b.dal) - giorniDa(a.dal));
+    if (attese.length) {
+      h += sez('In attesa dagli altri', null, attese.length);
+      h += '<div class="waitgrid">' + attese.map(a => {
+        const gg = giorniDa(a.dal);
+        const hot = gg >= 10;
+        return '<a class="waitp' + (hot ? ' hot' : '') + '" href="#/lavoro/' + esc(a.card) + '">' +
+          '<span class="ava">' + esc(iniziali(a.chi)) + '<span class="gg">' + gg + 'g</span></span>' +
+          '<div class="cosa">' + esc(a.cosa) + '</div>' +
+          '<div class="chi">' + esc(a.chi) + '</div></a>';
+      }).join('') + '</div>';
+    }
 
-    h += '<p class="foot">Pagina privata di Andrea &amp; Priscilla — per domande chiedete ad Andrea.</p>';
+    h += '<p class="foot">Pagina di famiglia · aggiornata il ' + dataLunga(D.aggiornamento) + '</p>';
     return h + '</div>';
   }
 
+  // ── I lavori ────────────────────────────────────────
+  function tile(c) {
+    const e = stEff(c.stato);
+    const pct = c.tot ? Math.round(100 * c.done / c.tot) : 0;
+    return '<a class="tile g-' + e + '" href="#/lavoro/' + c.id + '">' +
+      '<div class="tile-band band-' + e + '">' + c.emoji + '</div>' +
+      '<div class="tile-body">' +
+      '<div class="tile-name">' + esc(c.titolo) + '</div>' +
+      '<div class="tile-track"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="tile-foot">' + spill(c.stato) +
+      '<span class="tile-count">' + c.done + '/' + c.tot + '</span></div>' +
+      '</div></a>';
+  }
+
+  function screenLavori() {
+    let h = '<div class="screen">';
+    h += '<h1 class="screen-title small">I lavori</h1>';
+    h += '<p class="screen-sub">Tocca una tessera per vedere attività, decisioni e materiale.</p>';
+    GRUPPI.forEach(g => {
+      const group = D.cards.filter(c => stEff(c.stato) === g.st);
+      if (!group.length) return;
+      h += sez(g.titolo, null, group.length);
+      h += '<div class="tilegrid">' + group.map(tile).join('') + '</div>';
+    });
+    return h + '</div>';
+  }
+
+  // ── L'ordine dei lavori ─────────────────────────────
   function screenRoadmap() {
     let h = '<div class="screen">';
-    h += '<h1 class="screen-title">La roadmap</h1>';
-    h += '<p class="screen-sub">I lavori vanno in ordine: sporco prima di pulito, nascosto prima di visibile. Invertire vuol dire rifare.</p>';
-    h += '<ol class="fasi">' + D.fasi.map(f => {
+    h += '<h1 class="screen-title small">L\'ordine dei lavori</h1>';
+    h += '<p class="screen-sub">Prima gli impianti nascosti, poi le finiture: invertire vuol dire rifare.</p>';
+    h += '<ol class="fasi">' + D.fasi.map((f, i) => {
       const cardsFase = D.cards.filter(c => c.fase === f.id && c.stato !== 'fatto');
       return '<li class="fase ' + esc(f.stato) + '">' +
         '<span class="fase-dot"></span>' +
-        '<div class="fase-quando">' + esc(f.nome) + '</div>' +
+        '<div class="fase-quando">Fase ' + (i + 1) + ' — ' + esc(f.nome) + '</div>' +
         '<div class="fase-titolo">' + esc(f.titolo) + '</div>' +
         (f.stato === 'in-corso' ? '<div><span class="fase-tag">Siamo qui</span></div>' : '') +
         '<div class="fase-desc">' + fmt(f.descrizione || '') + '</div>' +
@@ -167,17 +177,65 @@
     return h + '</div>';
   }
 
-  function screenLavori() {
+  // ── Le spese ────────────────────────────────────────
+  function screenBudget() {
+    const voci = D.cards.filter(c => c.budget !== null || c.budgetNota);
+    const conCifra = voci.filter(c => c.budget !== null).sort((a, b) => b.budget - a.budget);
+    const daDefinire = voci.filter(c => c.budget === null);
+    const tot = conCifra.reduce((s, c) => s + c.budget, 0);
+
     let h = '<div class="screen">';
-    h += '<h1 class="screen-title">I lavori</h1>';
-    h += '<p class="screen-sub">Tocca un lavoro per aprire la sua pagina: cose da fare, decisioni e materiale.</p>';
-    STATO_ORDER.forEach(st => {
-      const group = D.cards.filter(c => c.stato === st);
-      if (!group.length) return;
-      h += secHeader(STATO_LABEL[st], group.length);
-      h += '<div class="panel rows">' + group.map(tile).join('') + '</div>';
-    });
+    h += '<h1 class="screen-title small">Le spese</h1>';
+    h += '<p class="screen-sub">Quanto è previsto per ogni lavoro.</p>';
+
+    h += '<div class="bhero"><div class="bh-label">Previsto sui lavori mappati</div>' +
+      '<div class="bh-value">' + euro(tot) + '</div>' +
+      (daDefinire.length ? '<div class="bh-nota">Più ' + daDefinire.length + ' voci ancora da preventivare</div>' : '') +
+      '</div>';
+
+    h += sez('Con preventivo', null, conCifra.length);
+    h += '<div class="blist">' + conCifra.map(c =>
+      '<a class="brow" href="#/lavoro/' + c.id + '">' +
+      '<span class="bemoji">' + c.emoji + '</span>' +
+      '<div class="bmain"><div class="bname">' + esc(c.titolo) + '</div>' +
+      (c.budgetNota ? '<div class="bnota">' + esc(corto(c.budgetNota, 70)) + '</div>' : '') +
+      '</div><span class="bval">' + euro(c.budget) + '</span></a>').join('') +
+      '<div class="brow btot"><div class="bmain"><div class="bname">Totale mappato</div></div><span class="bval">' + euro(tot) + '</span></div>' +
+      '</div>';
+
+    if (daDefinire.length) {
+      h += sez('Ancora da preventivare', null, daDefinire.length);
+      h += '<div class="blist">' + daDefinire.map(c =>
+        '<a class="brow" href="#/lavoro/' + c.id + '">' +
+        '<span class="bemoji">' + c.emoji + '</span>' +
+        '<div class="bmain"><div class="bname">' + esc(c.titolo) + '</div>' +
+        (c.budgetNota ? '<div class="bnota">' + esc(corto(c.budgetNota, 70)) + '</div>' : '') +
+        '</div><span class="bval tbd">da definire</span></a>').join('') + '</div>';
+    }
+
+    if (D.budgetNota) h += '<p class="bfoot">' + fmt(D.budgetNota) + '</p>';
     return h + '</div>';
+  }
+
+  // ── Dettaglio lavoro ────────────────────────────────
+  function taskRow(t) {
+    const late = !t.done && t.due && parseISO(t.due) < oggi;
+    const cls = (t.done ? 't-done' : (t.waiting ? 't-wait' : '')) + (late ? ' t-late' : '');
+    let meta = '';
+    if (!t.done && t.due) {
+      meta += late
+        ? '<span class="m late">Scaduto · era ' + dataGiorno(t.due) + '</span>'
+        : '<span class="m">Entro ' + dataGiorno(t.due) + '</span>';
+    }
+    if (!t.done && t.prio === 'critica') meta += '<span class="m">priorità massima</span>';
+    if (!t.done && t.prio === 'alta') meta += '<span class="m">alta priorità</span>';
+    if (!t.done && t.waiting) meta += '<span class="m">in attesa di risposta</span>';
+    if (t.done && t.doneDate) meta += '<span class="m">fatto il ' + dataBreve(t.doneDate) + '</span>';
+    return '<li class="' + cls + '">' +
+      '<span class="tbox">' + (t.done ? '✓' : (t.waiting ? '…' : '')) + '</span>' +
+      '<div class="tmain"><div class="ttext">' + fmt(t.text) + '</div>' +
+      (meta ? '<div class="tmeta">' + meta + '</div>' : '') +
+      '</div></li>';
   }
 
   function screenLavoro(id) {
@@ -187,113 +245,68 @@
     const fase = faseDi(c.fase);
     const aperti = c.tasks.filter(t => !t.done);
     const chiusi = c.tasks.filter(t => t.done);
+    const attese = (D.attese || []).filter(a => a.card === c.id).sort((a, b) => giorniDa(b.dal) - giorniDa(a.dal));
 
     let h = '<div class="screen">';
-    h += '<div class="dhead"><span class="tile-emoji">' + c.emoji + '</span>' +
-      '<div><div class="dhead-title">' + esc(c.titolo) + '</div>' +
-      '<div class="dhead-meta"><span class="badge ' + esc(c.stato) + '">' + STATO_LABEL[c.stato] + '</span>' +
+    h += '<a class="dback" href="#/lavori"><span class="circ">' + BACK + '</span>Torna ai lavori</a>';
+
+    h += '<div class="dhead"><span class="dhead-emoji">' + c.emoji + '</span>' +
+      '<div><div class="dhead-name">' + esc(c.titolo) + '</div>' +
+      '<div class="dhead-meta">' + spill(c.stato) +
       (fase ? '<span>' + esc(fase.nome) + ' — ' + esc(fase.titolo) + '</span>' : '') +
       '</div></div></div>';
 
-    h += '<div class="dprog' + (c.stato === 'fatto' ? ' done' : '') + '"><div class="bar"><span style="width:' + pct + '%"></span></div>' +
-      '<span class="pct">' + c.done + ' su ' + c.tot + ' · ' + pct + '%</span></div>';
+    h += '<div class="dprog"><span class="ring' + (c.stato === 'fatto' ? ' done' : '') + '" style="--p:' + pct + '" data-pct="' + pct + '%"></span>' +
+      '<div><div class="dp-count">' + c.done + ' su ' + c.tot + ' fatti</div>' +
+      '<div class="dp-budget">' + (c.budget !== null ? 'Budget previsto ' + euro(c.budget) : (c.budgetNota ? 'Budget da definire' : '')) + '</div>' +
+      '</div></div>';
 
-    if (c.budget !== null || c.budgetNota) {
-      h += '<div class="dbudget"><span class="db-label">Budget</span>' +
-        (c.budget !== null ? '<span class="db-value">€ ' + c.budget.toLocaleString('it-IT') + '</span>' : '<span class="db-value db-tbd">da definire</span>') +
-        (c.budgetNota ? '<span class="db-nota">' + fmt(c.budgetNota) + '</span>' : '') +
-        '</div>';
+    if (stEff(c.stato) === 'in-attesa' && attese.length) {
+      const a = attese[0];
+      const gg = giorniDa(a.dal);
+      h += '<div class="dwait' + (gg >= 10 ? ' hot' : '') + '">' + CLOCK +
+        '<span>In attesa: ' + esc(a.cosa) + ' (' + esc(a.chi) + ')</span>' +
+        '<span class="gg">da ' + gg + ' gg</span></div>';
     }
+
     if (c.sintesi) h += '<p class="dsintesi">' + fmt(c.sintesi) + '</p>';
 
-    // Sezioni standard, sempre nello stesso ordine
-    h += secHeader('Da fare', aperti.length);
-    h += aperti.length
-      ? '<div class="panel dsec-body"><ul class="tlist">' + aperti.map(taskRow).join('') + '</ul></div>'
-      : '<div class="panel dsec-empty">Niente da fare al momento.</div>';
-
-    h += secHeader('Decisioni aperte', c.decisioni.length);
-    h += c.decisioni.length
-      ? '<div class="panel dsec-body"><ul class="dlist">' + c.decisioni.map(d => '<li>' + fmt(d) + '</li>').join('') + '</ul></div>'
-      : '<div class="panel dsec-empty">Nessuna decisione aperta.</div>';
-
-    h += secHeader('Materiale da procurare', c.materiali.length);
-    h += c.materiali.length
-      ? '<div class="panel dsec-body"><ul class="mlist">' + c.materiali.map(m => '<li>' + fmt(m) + '</li>').join('') + '</ul></div>'
-      : '<div class="panel dsec-empty">Nessun materiale in lista.</div>';
-
-    h += secHeader('Fatto', chiusi.length);
-    h += chiusi.length
-      ? '<div class="panel dsec-body"><ul class="tlist">' + chiusi.map(taskRow).join('') + '</ul></div>'
-      : '<div class="panel dsec-empty">Ancora niente di completato qui.</div>';
-
-    return h + '</div>';
-  }
-
-  function screenBudget() {
-    const voci = D.cards.filter(c => c.budget !== null || c.budgetNota);
-    const conCifra = voci.filter(c => c.budget !== null).sort((a, b) => b.budget - a.budget);
-    const daDefinire = voci.filter(c => c.budget === null);
-    const tot = conCifra.reduce((s, c) => s + c.budget, 0);
-
-    let h = '<div class="screen">';
-    h += '<h1 class="screen-title">Il budget</h1>';
-    h += '<p class="screen-sub">Cifre previste per ogni lavoro. Tocca una voce per aprire il dettaglio.</p>';
-
-    h += '<div class="bhero"><div class="bh-value">€ ' + tot.toLocaleString('it-IT') + '</div>' +
-      '<div class="bh-label">previsti sui lavori mappati' + (daDefinire.length ? ' — più ' + daDefinire.length + ' voci ancora da preventivare' : '') + '</div>' +
-      (D.budgetNota ? '<div class="bh-warn">' + fmt(D.budgetNota) + '</div>' : '') +
-      '</div>';
-
-    h += secHeader('Voci con cifra', conCifra.length);
-    h += '<div class="panel rows">' + conCifra.map(c =>
-      '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
-      '<span class="tile-emoji">' + c.emoji + '</span>' +
-      '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
-      (c.budgetNota ? '<div class="row-sub">' + fmt(c.budgetNota) + '</div>' : '') +
-      '</div><span class="bval">€ ' + c.budget.toLocaleString('it-IT') + '</span></a>').join('') + '</div>';
-    h += '<div class="btot"><span>Totale mappato</span><span>€ ' + tot.toLocaleString('it-IT') + '</span></div>';
-
-    if (daDefinire.length) {
-      h += secHeader('Da preventivare', daDefinire.length);
-      h += '<div class="panel rows">' + daDefinire.map(c =>
-        '<a class="brow tile" href="#/lavoro/' + c.id + '">' +
-        '<span class="tile-emoji">' + c.emoji + '</span>' +
-        '<div class="row-main"><div class="row-text">' + esc(c.titolo) + '</div>' +
-        (c.budgetNota ? '<div class="row-sub">' + fmt(c.budgetNota) + '</div>' : '') +
-        '</div><span class="bval tbd">da definire</span></a>').join('') + '</div>';
+    if (aperti.length) {
+      h += sez('Da fare', 'accent', aperti.length);
+      h += '<div class="dcard"><ul class="tlist">' + aperti.map(taskRow).join('') + '</ul></div>';
+    }
+    if (c.decisioni.length) {
+      h += sez('Decisioni aperte', 'ottone', c.decisioni.length);
+      h += '<div class="dcard"><ul class="dlist">' + c.decisioni.map(d =>
+        '<li><span class="q">?</span><span>' + fmt(d) + '</span></li>').join('') + '</ul></div>';
+    }
+    if (c.materiali.length) {
+      h += sez('Materiale da procurare', 'salvia', c.materiali.length);
+      h += '<ul class="mlist">' + c.materiali.map(m => '<li>' + fmt(m) + '</li>').join('') + '</ul>';
+    }
+    if (chiusi.length) {
+      h += sez('Fatto', 'verde', chiusi.length);
+      h += '<div class="dcard done"><ul class="tlist">' + chiusi.map(taskRow).join('') + '</ul></div>';
     }
     return h + '</div>';
   }
 
   // ── Router ──────────────────────────────────────────
   const $screen = document.getElementById('screen');
-  const $tbTitle = document.getElementById('tb-title');
-  const $tbMeta = document.getElementById('tb-meta');
-  const $tbBack = document.getElementById('tb-back');
   const tabs = document.querySelectorAll('.tabbar a');
 
   function router() {
     const parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
-    let html, tab = 'home', title = 'Borgo Veneto', meta = 'agg. ' + dataBreve(D.aggiornamento), back = null;
+    let html, tab = 'home';
 
-    if (parts[0] === 'roadmap') { html = screenRoadmap(); tab = 'roadmap'; title = 'Borgo Veneto'; }
+    if (parts[0] === 'roadmap') { html = screenRoadmap(); tab = 'roadmap'; }
     else if (parts[0] === 'budget') { html = screenBudget(); tab = 'budget'; }
     else if (parts[0] === 'lavori') { html = screenLavori(); tab = 'lavori'; }
-    else if (parts[0] === 'lavoro' && parts[1]) {
-      const c = cardDi(parts[1]);
-      html = screenLavoro(parts[1]);
-      tab = 'lavori';
-      if (c) { title = c.titolo; back = '#/lavori'; meta = ''; }
-    }
+    else if (parts[0] === 'lavoro' && parts[1]) { html = screenLavoro(parts[1]); tab = 'lavori'; }
     else { html = screenHome(); }
 
     if (html === '') return; // redirect già fatto
     $screen.innerHTML = html;
-    $tbTitle.textContent = title;
-    $tbMeta.textContent = meta;
-    if (back) { $tbBack.hidden = false; $tbBack.setAttribute('href', back); }
-    else $tbBack.hidden = true;
     tabs.forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
     window.scrollTo(0, 0);
   }
