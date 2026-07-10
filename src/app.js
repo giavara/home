@@ -282,7 +282,7 @@
     }
     if (c.materiali.length) {
       h += sez('Materiale da procurare', 'salvia', c.materiali.length);
-      h += '<ul class="mlist">' + c.materiali.map(m => '<li>' + fmt(m) + '</li>').join('') + '</ul>';
+      h += '<div class="dcard"><ul class="mlist">' + c.materiali.map(m => '<li><span>' + fmt(m) + '</span></li>').join('') + '</ul></div>';
     }
     if (chiusi.length) {
       h += sez('Fatto', 'verde', chiusi.length);
