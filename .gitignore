@@ -8,3 +8,7 @@ build-tmp/
 # Dati di stato in chiaro: NON pushare su repo pubblico.
 # Resta solo in locale + iCloud. Il contenuto finisce cifrato in dist/index.html.
 site-data.yaml
+
+# Temi della scheda Render e cache delle foto cifrate: restano in locale + iCloud
+render.yaml
+.render-cache.json

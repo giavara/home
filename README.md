@@ -1,9 +1,9 @@
 # Casa Borgo Veneto — sito stato lavori
 
-Web-app statica privata (password-protected) per condividere con famiglia/parenti il piano lavori. Design "1C editoriale/villa" (avorio caldo, terracotta, font Marcellus + Manrope da Google Fonts). Routing hash-based in un solo HTML cifrato: tab Oggi / Lavori / Ordine / Spese. La home ha la hero "Da fare adesso" (urgenze aggregate) e le faccine "In attesa dagli altri" coi giorni di attesa (campo `attese:` in site-data.yaml, con data `dal:`). Ogni lavoro ha una schermata dedicata con anello di progresso, budget, e sezioni Da fare / Decisioni / Materiale / Fatto.
+Web-app statica privata (password-protected) per condividere con famiglia/parenti il piano lavori. Design "1C editoriale/villa" (avorio caldo, terracotta, font Marcellus + Manrope da Google Fonts). Routing hash-based in un solo HTML cifrato: tab Oggi / Lavori / Ordine / Spese / Render. La home ha la hero "Da fare adesso" (urgenze aggregate) e le faccine "In attesa dagli altri" coi giorni di attesa (campo `attese:` in site-data.yaml, con data `dal:`). Ogni lavoro ha una schermata dedicata con anello di progresso, budget, e sezioni Da fare / Decisioni / Materiale / Fatto.
 
 URL: https://giavara.github.io/home/
-Password: vedi `.env` (default: `prisci`)
+Password: in `.env` (`SITE_PASSWORD`). Non scriverla mai in questo file: il repo è pubblico.
 
 ## Da dove vengono i dati
 
@@ -27,6 +27,20 @@ In `site-data.yaml` stanno solo: metadati card (emoji, titolo, stato, sintesi in
 
 Il parser dei task capisce: `[ ]`/`[x]`, 📅 scadenza, ✅ data completamento, 🔺⏫🔽 priorità, prefisso `Aspetto:`/tag `#aspetto` → "in attesa". La proprietà `sezione` di ogni card in `site-data.yaml` deve matchare (substring, case-insensitive) il titolo di sezione in `tasks.md`.
 
+## Render
+
+La tab Render mostra le prove del modello 3D (`~/Projects/casa-3d/render`) divise per tema: ogni tema è un confronto con una foto per variante e il suo codice (RAL, esadecimale...). Ogni tema ha un link suo da condividere (`#/render/<id>`), ogni foto pure (`#/render/<id>/<n>`).
+
+```
+render.yaml (temi, foto, codici) ─→ render.mjs ─→ docs/r/*.bin (WebP cifrate AES-256-GCM)
+                                         └──────→ chiave + elenco temi dentro index.html (cifrato da staticrypt)
+```
+
+- I temi si scrivono in `render.yaml` (gitignored): istruzioni in testa al file. Il build segnala le prove recenti che non sono ancora in un tema
+- Le foto escono solo cifrate: la chiave (`RENDER_KEY` in `.env`, generata al primo build) arriva al browser solo dentro la pagina protetta da password. Non cambiarla: le foto pubblicate usano quella
+- Le foto già convertite non si rifanno (`.render-cache.json`, gitignored); quelle tolte dai temi spariscono da `docs/r/`. Gli originali in casa-3d non si toccano mai
+- Conversione con `cwebp` (Homebrew), lato lungo max 2000 px; senza cwebp ripiega su JPEG con `sips`
+
 ## Comandi
 
 | Comando | Cosa fa |
@@ -40,8 +54,10 @@ Il parser dei task capisce: `[ ]`/`[x]`, 📅 scadenza, ✅ data completamento, 
 ```
 site/
 ├── site-data.yaml        ← card, roadmap, agenda (gitignored: resta in locale)
+├── render.yaml           ← temi della tab Render (gitignored)
 ├── scripts/
 │   ├── build.mjs         ← parser tasks.md + generatore docs/index.html
+│   ├── render.mjs        ← foto dei render: WebP + cifratura in docs/r/
 │   └── encrypt.mjs       ← cifra con staticrypt
 ├── src/
 │   ├── template.html
@@ -54,7 +70,7 @@ site/
 ## Privacy
 
 - staticrypt cifra `docs/index.html` con AES-256, password derivata via PBKDF2
-- Il repo è pubblico ma il contenuto è cifrato; `site-data.yaml` e `.env` sono gitignored
+- Il repo è pubblico ma il contenuto è cifrato, foto dei render comprese; `site-data.yaml`, `render.yaml` e `.env` sono gitignored
 - Chi ha la password vede tutto, chi non ce l'ha vede solo il prompt
 
 ## Cambiare la password

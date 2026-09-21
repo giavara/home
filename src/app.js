@@ -291,24 +291,241 @@
     return h + '</div>';
   }
 
+  // ── Render ──────────────────────────────────────────
+  // Le foto stanno cifrate (AES-GCM) in docs/r/. La chiave arriva dentro APP_DATA, quindi solo a chi
+  // ha passato la password; si scaricano e si decifrano quando entrano a schermo.
+  const R = D.render && D.render.temi && D.render.temi.length ? D.render : null;
+  const temaDi = id => (R && R.temi.find(t => t.id === id)) || null;
+  const fotoPerSrc = new Map();
+  if (R) R.temi.forEach(t => t.foto.forEach(f => fotoPerSrc.set(f.src, f)));
+
+  const SHARE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14.5V3.5"/><path d="M7.5 8 12 3.5 16.5 8"/><path d="M5 12v6.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V12"/></svg>';
+  const CLOSE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const PREV = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+  const NEXT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+  let chiaveP = null;
+  const decifrate = new Map();   // src → Promise dell'URL dell'immagine in chiaro
+
+  function apriFoto(f) {
+    if (!decifrate.has(f.src)) {
+      const p = Promise.resolve().then(() => {
+        if (!chiaveP) {
+          const raw = Uint8Array.from(atob(R.key), c => c.charCodeAt(0));
+          chiaveP = crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+        }
+        return fetch(f.src);
+      })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+        .then(buf => chiaveP.then(k => crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(buf, 0, 12) }, k, new Uint8Array(buf, 12))))
+        .then(dati => URL.createObjectURL(new Blob([dati], { type: f.mime })));
+      p.catch(() => decifrate.delete(f.src));   // alla prossima apertura riprova
+      decifrate.set(f.src, p);
+    }
+    return decifrate.get(f.src);
+  }
+
+  function mostraIn(img, f) {
+    const box = img.parentNode;
+    img.onload = () => box.classList.add('ok');
+    apriFoto(f).then(url => { img.src = url; }, () => box.classList.add('ko'));
+  }
+
+  let osservatore = null;
+  function caricaFoto() {
+    if (osservatore) { osservatore.disconnect(); osservatore = null; }
+    const imgs = $screen.querySelectorAll('img[data-foto]');
+    const carica = img => mostraIn(img, fotoPerSrc.get(img.dataset.foto));
+    if (!('IntersectionObserver' in window)) { imgs.forEach(carica); return; }
+    osservatore = new IntersectionObserver(voci => voci.forEach(v => {
+      if (!v.isIntersecting) return;
+      osservatore.unobserve(v.target);
+      carica(v.target);
+    }), { rootMargin: '600px 0px' });
+    imgs.forEach(img => osservatore.observe(img));
+  }
+
+  // "2026-09-21T12:59" → "21 set, 12:59"
+  const quando = s => s ? dataBreve(s.slice(0, 10)) + ', ' + s.slice(11, 16) : '';
+  const tinta = f => f.colore ? '<span class="swatch" style="background:' + esc(f.colore) + '"></span>' : '';
+
+  function fotoBox(f, proporzioni) {
+    return '<div class="rfoto"' + (proporzioni ? ' style="aspect-ratio:' + f.w + '/' + f.h + '"' : '') + '>' +
+      '<img data-foto="' + esc(f.src) + '" alt="' + esc(f.nome) + '"></div>';
+  }
+
+  function didascalia(f) {
+    const meta = [quando(f.data), esc(f.nota)].filter(Boolean).join(' · ');
+    return (f.codice ? '<div class="rcode">' + tinta(f) + '<span>' + esc(f.codice) + '</span></div>' : '') +
+      '<div class="rname' + (f.codice ? '' : ' solo') + '">' + esc(f.nome) + '</div>' +
+      (meta ? '<div class="rmeta">' + meta + '</div>' : '');
+  }
+
+  function screenRender() {
+    let h = '<div class="screen">';
+    h += '<div class="kicker">Il modello 3D</div>';
+    h += '<h1 class="screen-title small">Render</h1>';
+    h += '<p class="screen-sub">Le prove fatte sul modello 3D della casa, divise per tema. In ogni tema una foto per variante, con il suo codice.</p>';
+    const ambienti = [];
+    R.temi.forEach(t => { if (!ambienti.includes(t.ambiente)) ambienti.push(t.ambiente); });
+    ambienti.forEach(a => {
+      const temi = R.temi.filter(t => t.ambiente === a);
+      h += sez(esc(a || 'Altro'), null, temi.length);
+      h += '<div class="rtemi">' + temi.map(t => {
+        const ultima = t.foto.map(f => f.data).filter(Boolean).sort().pop();
+        const colori = t.foto.filter((f, i, tutte) => f.colore && tutte.findIndex(g => g.colore === f.colore) === i);
+        return '<a class="rtema" href="#/render/' + t.id + '">' + fotoBox(t.foto[0], false) +
+          '<div class="rtema-body"><div class="rtema-name">' + esc(t.titolo) + '</div>' +
+          '<div class="rmeta">' + t.foto.length + ' foto' + (ultima ? ' · ultima prova il ' + dataBreve(ultima.slice(0, 10)) : '') + '</div>' +
+          (colori.length ? '<div class="rtinte">' + colori.map(tinta).join('') + '</div>' : '') +
+          '</div></a>';
+      }).join('') + '</div>';
+    });
+    return h + '</div>';
+  }
+
+  function screenTema(id) {
+    const t = temaDi(id);
+    if (!t) { location.replace('#/render'); return ''; }
+    let h = '<div class="screen">';
+    h += '<div class="rtop"><a class="dback" href="#/render"><span class="circ">' + BACK + '</span>Tutti i render</a>' +
+      '<button type="button" class="rshare" data-share="' + t.id + '">' + SHARE + '<span>Condividi</span></button></div>';
+    if (t.ambiente) h += '<div class="kicker">' + esc(t.ambiente) + '</div>';
+    h += '<h1 class="screen-title small">' + esc(t.titolo) + '</h1>';
+    if (t.nota) h += '<p class="screen-sub">' + fmt(t.nota) + '</p>';
+    h += '<div class="rgrid">' + t.foto.map((f, i) =>
+      '<a class="rvar" href="#/render/' + t.id + '/' + (i + 1) + '">' + fotoBox(f, true) +
+      '<div class="rvar-body">' + didascalia(f) + '</div></a>').join('') + '</div>';
+    return h + '</div>';
+  }
+
+  // Foto a schermo intero: #/render/<tema>/<n>. Frecce, tastiera e swipe scorrono le varianti del tema.
+  const $viewer = document.createElement('div');
+  $viewer.className = 'viewer';
+  $viewer.hidden = true;
+  $viewer.setAttribute('role', 'dialog');
+  $viewer.setAttribute('aria-modal', 'true');
+  document.body.appendChild($viewer);
+  let aperta = null;          // { t, i } della foto a schermo intero
+  let apertaDaClick = false;  // aperta dalla griglia: "chiudi" torna indietro nella cronologia
+
+  function mostraFoto(t, i) {
+    aperta = { t, i };
+    const f = t.foto[i];
+    const molte = t.foto.length > 1;
+    $viewer.innerHTML =
+      '<div class="vw-top"><span class="vw-count">' + (molte ? (i + 1) + ' / ' + t.foto.length : '') + '</span>' +
+      '<button type="button" class="vw-btn" data-v="chiudi" aria-label="Chiudi">' + CLOSE + '</button></div>' +
+      '<div class="vw-stage"><img alt="' + esc(f.nome) + '"></div>' +
+      (molte ? '<button type="button" class="vw-nav prev" data-v="-1" aria-label="Foto precedente">' + PREV + '</button>' +
+        '<button type="button" class="vw-nav next" data-v="1" aria-label="Foto successiva">' + NEXT + '</button>' : '') +
+      '<div class="vw-cap">' + didascalia(f) + '</div>';
+    $viewer.hidden = false;
+    document.body.classList.add('noscroll');
+    mostraIn($viewer.querySelector('img'), f);
+    if (molte) [i - 1, i + 1].forEach(j => apriFoto(t.foto[(j + t.foto.length) % t.foto.length]).catch(() => {}));
+  }
+
+  function chiudiFoto() {
+    aperta = null;
+    $viewer.hidden = true;
+    $viewer.innerHTML = '';
+    document.body.classList.remove('noscroll');
+  }
+
+  function scorri(delta) {
+    const n = aperta.t.foto.length;
+    if (n < 2) return;
+    const j = (aperta.i + delta + n) % n;
+    history.replaceState(null, '', '#/render/' + aperta.t.id + '/' + (j + 1));
+    mostraFoto(aperta.t, j);
+  }
+
+  function esci() {
+    if (!aperta) return;
+    if (apertaDaClick) history.back();
+    else location.replace('#/render/' + aperta.t.id);
+  }
+
+  function syncFoto(id, n, daClick) {
+    const t = temaDi(id), i = Number(n) - 1;
+    if (t && Number.isInteger(i) && i >= 0 && i < t.foto.length) {
+      if (!aperta) apertaDaClick = daClick;
+      mostraFoto(t, i);
+    } else if (aperta) chiudiFoto();
+  }
+
+  $viewer.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    if (b.dataset.v === 'chiudi') esci(); else scorri(Number(b.dataset.v));
+  });
+  let tocco = null;
+  $viewer.addEventListener('touchstart', e => {
+    tocco = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  $viewer.addEventListener('touchend', e => {
+    if (!tocco || !aperta) return;
+    const dx = e.changedTouches[0].clientX - tocco.x, dy = e.changedTouches[0].clientY - tocco.y;
+    tocco = null;
+    const zoom = window.visualViewport ? window.visualViewport.scale : 1;
+    if (zoom < 1.05 && Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)) scorri(dx < 0 ? 1 : -1);
+  });
+  document.addEventListener('keydown', e => {
+    if (!aperta) return;
+    if (e.key === 'Escape') esci();
+    else if (e.key === 'ArrowRight') scorri(1);
+    else if (e.key === 'ArrowLeft') scorri(-1);
+  });
+
+  // Condividi: sul telefono apre il foglio di condivisione (WhatsApp ecc.), altrimenti copia il link
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-share]');
+    if (!b) return;
+    const t = temaDi(b.dataset.share);
+    const url = location.href.split('#')[0] + '#/render/' + t.id;
+    const etichetta = b.querySelector('span');
+    const conferma = () => { etichetta.textContent = 'Link copiato'; setTimeout(() => { etichetta.textContent = 'Condividi'; }, 2200); };
+    if (navigator.share) navigator.share({ title: t.titolo, url }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(url).then(conferma, () => window.prompt('Copia il link:', url));
+    else window.prompt('Copia il link:', url);
+  });
+
   // ── Router ──────────────────────────────────────────
   const $screen = document.getElementById('screen');
+  if (!R) { const t = document.querySelector('.tabbar a[data-tab="render"]'); if (t) t.remove(); }
   const tabs = document.querySelectorAll('.tabbar a');
+  let schermata = null;   // pagina a schermo: se cambia solo la foto aperta non si ridisegna
 
-  function router() {
+  function router(evt) {
     const parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
-    let html, tab = 'home';
 
+    // stesso tema già a schermo: si apre o si chiude solo la foto, la pagina resta dov'era
+    if (R && parts[0] === 'render' && parts[1] && schermata === 'render/' + parts[1]) {
+      syncFoto(parts[1], parts[2], !!evt);
+      return;
+    }
+    if (aperta) chiudiFoto();
+
+    let html, tab = 'home';
     if (parts[0] === 'roadmap') { html = screenRoadmap(); tab = 'roadmap'; }
     else if (parts[0] === 'budget') { html = screenBudget(); tab = 'budget'; }
     else if (parts[0] === 'lavori') { html = screenLavori(); tab = 'lavori'; }
     else if (parts[0] === 'lavoro' && parts[1]) { html = screenLavoro(parts[1]); tab = 'lavori'; }
+    else if (parts[0] === 'render' && R) { html = parts[1] ? screenTema(parts[1]) : screenRender(); tab = 'render'; }
     else { html = screenHome(); }
 
     if (html === '') return; // redirect già fatto
     $screen.innerHTML = html;
+    $screen.classList.toggle('wide', tab === 'render');
+    schermata = tab === 'render' && parts[1] ? 'render/' + parts[1] : parts[0];
     tabs.forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
     window.scrollTo(0, 0);
+    if (tab === 'render') {
+      caricaFoto();
+      // link diretto a una foto: chiudendola si resta sulla griglia del suo tema
+      if (parts[2]) syncFoto(parts[1], parts[2], false);
+    }
   }
 
   window.addEventListener('hashchange', router);

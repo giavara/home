@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
+import { buildRender } from './render.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -112,6 +113,7 @@ const APP_DATA = {
   appuntamenti: (data.appuntamenti || []).map(a => ({ ...a, data: toISO(a.data) })),
   attese: (data.attese || []).map(a => ({ ...a, dal: toISO(a.dal) })),
   cards, stats,
+  render: buildRender({ root: ROOT, dist: DIST }),   // temi da render.yaml, foto cifrate in docs/r/
 };
 
 // ── Render template ─────────────────────────────────────────
