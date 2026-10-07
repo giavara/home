@@ -345,8 +345,8 @@
     imgs.forEach(img => osservatore.observe(img));
   }
 
-  // "2026-09-21T12:59" → "21 set, 12:59"
-  const quando = s => s ? dataBreve(s.slice(0, 10)) + ', ' + s.slice(11, 16) : '';
+  // "2026-09-21T12:59" → "21 set" (l'ora del render non interessa: accanto a «di sera» confonde)
+  const quando = s => s ? dataBreve(s.slice(0, 10)) : '';
   const tinta = f => f.colore ? '<span class="swatch" style="background:' + esc(f.colore) + '"></span>' : '';
 
   function fotoBox(f, proporzioni) {
@@ -365,7 +365,7 @@
     let h = '<div class="screen">';
     h += '<div class="kicker">Il modello 3D</div>';
     h += '<h1 class="screen-title small">Render</h1>';
-    h += '<p class="screen-sub">Le prove fatte sul modello 3D della casa, divise per tema. In ogni tema una foto per variante, con il suo codice.</p>';
+    h += '<p class="screen-sub">I render del modello 3D della casa, stanza per stanza: com\'è il progetto adesso e le prove a colori. Nelle prove una foto per variante, con il suo codice.</p>';
     const ambienti = [];
     R.temi.forEach(t => { if (!ambienti.includes(t.ambiente)) ambienti.push(t.ambiente); });
     ambienti.forEach(a => {

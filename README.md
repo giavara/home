@@ -29,14 +29,16 @@ Il parser dei task capisce: `[ ]`/`[x]`, 📅 scadenza, ✅ data completamento, 
 
 ## Render
 
-La tab Render mostra le prove del modello 3D (`~/Projects/casa-3d/render`) divise per tema: ogni tema è un confronto con una foto per variante e il suo codice (RAL, esadecimale...). Ogni tema ha un link suo da condividere (`#/render/<id>`), ogni foto pure (`#/render/<id>/<n>`).
+La tab Render mostra una selezione ragionata dei render del modello 3D (`~/Projects/casa-3d/render`), stanza per stanza (cucina, salotto, bagno, zona notte): per ognuna una panoramica di progetto e le prove a colori, con una foto per variante e il suo codice (RAL, esadecimale...). Non è l'archivio di tutte le prove. Ogni tema ha un link suo da condividere (`#/render/<id>`), ogni foto pure (`#/render/<id>/<n>`).
 
 ```
 render.yaml (temi, foto, codici) ─→ render.mjs ─→ docs/r/*.bin (WebP cifrate AES-256-GCM)
                                          └──────→ chiave + elenco temi dentro index.html (cifrato da staticrypt)
 ```
 
-- I temi si scrivono in `render.yaml` (gitignored): istruzioni in testa al file. Il build segnala le prove recenti che non sono ancora in un tema
+- I temi si scrivono in `render.yaml` (gitignored): istruzioni in testa al file. Ogni codice colore deve avere una fonte nei file di casa-3d (render.json o variante.yaml della cartella del render, script, yaml), mai stimato dall'immagine. Il build segnala le prove recenti che non sono ancora in un tema: con una selezione sono tante per scelta
+- I temi tolti dalla pagina restano nello stesso file sotto `archivio:` (il build lo ignora): per rimetterne uno sul sito basta spostarlo sotto `temi:`
+- Nelle didascalie compare solo la data del render, senza l'ora
 - Le foto escono solo cifrate: la chiave (`RENDER_KEY` in `.env`, generata al primo build) arriva al browser solo dentro la pagina protetta da password. Non cambiarla: le foto pubblicate usano quella
 - Le foto già convertite non si rifanno (`.render-cache.json`, gitignored); quelle tolte dai temi spariscono da `docs/r/`. Gli originali in casa-3d non si toccano mai
 - Conversione con `cwebp` (Homebrew), lato lungo max 2000 px; senza cwebp ripiega su JPEG con `sips`
