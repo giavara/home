@@ -748,3 +748,6 @@ body.noscroll { overflow: hidden; }
 @media (min-width: 1180px) {
   .rtemi { grid-template-columns: repeat(3, 1fr); }
 }
+@media (min-width: 820px) {
+  .rgrid.c3 { grid-template-columns: repeat(3, 1fr); }
+}

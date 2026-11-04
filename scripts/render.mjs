@@ -50,7 +50,8 @@ export function buildRender({ root, dist }) {
         nota: (f.nota || '').trim(), data: dataDaCartella(f.img),
       };
     }).filter(Boolean);
-    return { id: t.id, titolo: t.titolo || t.id, ambiente: t.ambiente || '', nota: (t.nota || '').trim(), foto };
+    const colonne = t.colonne === 3 ? 3 : undefined;   // facoltativo: 3 foto per riga su schermo largo (confronti a tre)
+    return { id: t.id, titolo: t.titolo || t.id, ambiente: t.ambiente || '', nota: (t.nota || '').trim(), colonne, foto };
   }).filter(t => t.foto.length);
 
   function preparaFoto(img) {

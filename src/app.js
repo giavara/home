@@ -393,7 +393,7 @@
     if (t.ambiente) h += '<div class="kicker">' + esc(t.ambiente) + '</div>';
     h += '<h1 class="screen-title small">' + esc(t.titolo) + '</h1>';
     if (t.nota) h += '<p class="screen-sub">' + fmt(t.nota) + '</p>';
-    h += '<div class="rgrid">' + t.foto.map((f, i) =>
+    h += '<div class="rgrid' + (t.colonne === 3 ? ' c3' : '') + '">' + t.foto.map((f, i) =>
       '<a class="rvar" href="#/render/' + t.id + '/' + (i + 1) + '">' + fotoBox(f, true) +
       '<div class="rvar-body">' + didascalia(f) + '</div></a>').join('') + '</div>';
     return h + '</div>';
